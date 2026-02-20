@@ -1,0 +1,64 @@
+name: Build Valheim DLL
+
+on:
+  workflow_dispatch:  # manuelles Auslösen
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      # 1️⃣ Repo auschecken
+      - uses: actions/checkout@v4
+
+      # 2️⃣ Temp-Verzeichnis erstellen
+      - name: Create temp folder
+        shell: powershell
+        run: mkdir C:\vtemp
+
+      # 3️⃣ SteamCMD herunterladen & entpacken
+      - name: Download SteamCMD
+        shell: powershell
+        run: |
+          $steamCmdUrl = "https://steamcdn-a.akamaihd.net/client/installer/steamcmd.zip"
+          $steamCmdZip = "C:\vtemp\steamcmd.zip"
+          Invoke-WebRequest $steamCmdUrl -OutFile $steamCmdZip
+          Expand-Archive $steamCmdZip -DestinationPath C:\vtemp\steamcmd
+
+      # 4️⃣ SteamCMD initialisieren (vermeidet Missing Configuration)
+      - name: Initialize SteamCMD
+        shell: powershell
+        run: |
+          & C:\vtemp\steamcmd\steamcmd.exe +quit
+          Start-Sleep 3
+
+      # 5️⃣ Valheim Dedicated Server installieren / updaten
+      - name: Install Valheim Server
+        shell: powershell
+        run: |
+          & C:\vtemp\steamcmd\steamcmd.exe `
+            +force_install_dir "C:\vtemp\valheim_ds" `
+            +login anonymous `
+            +app_update 896660 validate `
+            +quit
+
+      # 6️⃣ Mono.Cecil 0.11.4 herunterladen
+      - name: Download Mono.Cecil
+        shell: powershell
+        run: |
+          $cecilUrl = "https://www.nuget.org/api/v2/package/Mono.Cecil/0.11.4"
+          $cecilPkg = "C:\vtemp\Mono.Cecil.nupkg"
+          Invoke-WebRequest -Uri $cecilUrl -OutFile $cecilPkg
+          Expand-Archive $cecilPkg -DestinationPath C:\vtemp\cecil
+
+      # 7️⃣ Dein PS1 Script ausführen (patcht die DLL)
+      - name: Patch DLL
+        shell: powershell
+        run: ./Valheim-DLL.ps1
+
+      # 8️⃣ Gepatchte DLL hochladen
+      - name: Upload DLL
+        uses: actions/upload-artifact@v4
+        with:
+          name: assembly_valheim
+          path: assembly_valheim.dll
