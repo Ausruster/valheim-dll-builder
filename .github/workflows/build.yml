@@ -16,20 +16,24 @@ jobs:
         shell: powershell
         run: mkdir C:\vtemp
 
-      # 3️⃣ SteamCMD herunterladen & entpacken
-      - name: Download SteamCMD
+      # 3️⃣ SteamCMD sauber installieren
+      - name: Install SteamCMD
         shell: powershell
         run: |
-          $steamCmdUrl = "https://steamcdn-a.akamaihd.net/client/installer/steamcmd.zip"
-          $steamCmdZip = "C:\vtemp\steamcmd.zip"
-          Invoke-WebRequest $steamCmdUrl -OutFile $steamCmdZip
-          Expand-Archive $steamCmdZip -DestinationPath C:\vtemp\steamcmd
+          mkdir -p C:\vtemp\steamcmd
+          # Alte Dateien löschen
+          Remove-Item -Path C:\vtemp\steamcmd\* -Force -Recurse -ErrorAction SilentlyContinue
+          # SteamCMD herunterladen
+          Invoke-WebRequest -Uri "https://steamcdn-a.akamaihd.net/client/installer/steamcmd.zip" -OutFile "C:\vtemp\steamcmd\steamcmd.zip"
+          Expand-Archive -Path "C:\vtemp\steamcmd\steamcmd.zip" -DestinationPath "C:\vtemp\steamcmd"
+          Remove-Item "C:\vtemp\steamcmd\steamcmd.zip"
 
       # 4️⃣ SteamCMD initialisieren (vermeidet Missing Configuration)
-      - name: Initialize SteamCMD
+      - name: Run SteamCMD once
         shell: powershell
         run: |
-          & C:\vtemp\steamcmd\steamcmd.exe +quit
+          cd C:\vtemp\steamcmd
+          ./steamcmd.exe +login anonymous +quit
           Start-Sleep 3
 
       # 5️⃣ Valheim Dedicated Server installieren / updaten mit Retry
