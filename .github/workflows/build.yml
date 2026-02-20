@@ -1,7 +1,7 @@
 name: Build Valheim DLL
 
 on:
-  workflow_dispatch:  # manuelles Auslösen
+  workflow_dispatch:  # manuelles Starten
 
 jobs:
   build:
@@ -32,15 +32,32 @@ jobs:
           & C:\vtemp\steamcmd\steamcmd.exe +quit
           Start-Sleep 3
 
-      # 5️⃣ Valheim Dedicated Server installieren / updaten
+      # 5️⃣ Valheim Dedicated Server installieren / updaten mit Retry
       - name: Install Valheim Server
         shell: powershell
         run: |
-          & C:\vtemp\steamcmd\steamcmd.exe `
-            +force_install_dir "C:\vtemp\valheim_ds" `
-            +login anonymous `
-            +app_update 896660 validate `
-            +quit
+          $maxAttempts = 3
+          for ($i = 1; $i -le $maxAttempts; $i++) {
+              Write-Host "==> Valheim Installation Versuch $i/$maxAttempts..."
+              & C:\vtemp\steamcmd\steamcmd.exe `
+                  +force_install_dir "C:\vtemp\valheim_ds" `
+                  +login anonymous `
+                  +app_update 896660 validate `
+                  +quit
+
+              if ($LASTEXITCODE -eq 0) {
+                  Write-Host "==> Valheim erfolgreich installiert / aktualisiert"
+                  break
+              }
+
+              if ($i -eq $maxAttempts) {
+                  Write-Host "==> Valheim Installation fehlgeschlagen nach $maxAttempts Versuchen"
+                  exit 1
+              }
+
+              Write-Host "==> Versuch fehlgeschlagen, warte 10 Sekunden und erneut..."
+              Start-Sleep -Seconds 10
+          }
 
       # 6️⃣ Mono.Cecil 0.11.4 herunterladen
       - name: Download Mono.Cecil
@@ -51,12 +68,12 @@ jobs:
           Invoke-WebRequest -Uri $cecilUrl -OutFile $cecilPkg
           Expand-Archive $cecilPkg -DestinationPath C:\vtemp\cecil
 
-      # 7️⃣ Dein PS1 Script ausführen (patcht die DLL)
+      # 7️⃣ DLL patchen mit deinem PS1 Script
       - name: Patch DLL
         shell: powershell
         run: ./Valheim-DLL.ps1
 
-      # 8️⃣ Gepatchte DLL hochladen
+      # 8️⃣ Gepatchte DLL als Artefakt hochladen
       - name: Upload DLL
         uses: actions/upload-artifact@v4
         with:
