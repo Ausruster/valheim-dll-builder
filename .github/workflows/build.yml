@@ -21,9 +21,7 @@ jobs:
         shell: powershell
         run: |
           mkdir -p C:\vtemp\steamcmd
-          # Alte Dateien löschen
           Remove-Item -Path C:\vtemp\steamcmd\* -Force -Recurse -ErrorAction SilentlyContinue
-          # SteamCMD herunterladen
           Invoke-WebRequest -Uri "https://steamcdn-a.akamaihd.net/client/installer/steamcmd.zip" -OutFile "C:\vtemp\steamcmd\steamcmd.zip"
           Expand-Archive -Path "C:\vtemp\steamcmd\steamcmd.zip" -DestinationPath "C:\vtemp\steamcmd"
           Remove-Item "C:\vtemp\steamcmd\steamcmd.zip"
@@ -34,9 +32,26 @@ jobs:
         run: |
           cd C:\vtemp\steamcmd
           ./steamcmd.exe +login anonymous +quit
+          if ($LASTEXITCODE -ne 0) {
+              Write-Host "##[error]SteamCMD initialization failed with exit code $LASTEXITCODE"
+              Get-Content -Path "C:\vtemp\steamcmd\logs\stderr.txt" -ErrorAction SilentlyContinue | Write-Host
+              exit 1
+          }
           Start-Sleep 3
 
-      # 5️⃣ Valheim Dedicated Server installieren / updaten mit Retry
+      # 5️⃣ Verify SteamCMD installation
+      - name: Verify SteamCMD installation
+        shell: powershell
+        run: |
+          if (Test-Path "C:\vtemp\steamcmd\steamcmd.exe") {
+              Write-Host "✓ steamcmd.exe found"
+              ls -la C:\vtemp\steamcmd\steamcmd.exe
+          } else {
+              Write-Host "##[error]steamcmd.exe not found after extraction"
+              exit 1
+          }
+
+      # 6️⃣ Valheim Dedicated Server installieren / updaten mit Retry
       - name: Install Valheim Server
         shell: powershell
         run: |
@@ -63,7 +78,7 @@ jobs:
               Start-Sleep -Seconds 10
           }
 
-      # 6️⃣ Mono.Cecil 0.11.4 herunterladen
+      # 7️⃣ Mono.Cecil 0.11.4 herunterladen
       - name: Download Mono.Cecil
         shell: powershell
         run: |
@@ -72,12 +87,12 @@ jobs:
           Invoke-WebRequest -Uri $cecilUrl -OutFile $cecilPkg
           Expand-Archive $cecilPkg -DestinationPath C:\vtemp\cecil
 
-      # 7️⃣ DLL patchen mit deinem PS1 Script
+      # 8️⃣ DLL patchen mit deinem PS1 Script
       - name: Patch DLL
         shell: powershell
         run: ./Valheim-DLL.ps1
 
-      # 8️⃣ Gepatchte DLL als Artefakt hochladen
+      # 9️⃣ Gepatchte DLL als Artefakt hochladen
       - name: Upload DLL
         uses: actions/upload-artifact@v4
         with:
