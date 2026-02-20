@@ -16,27 +16,31 @@ jobs:
         shell: powershell
         run: mkdir C:\vtemp
 
-      # 3️⃣ SteamCMD sauber installieren (komplett löschen & neu)
+      # 3️⃣ SteamCMD sauber installieren
       - name: Install SteamCMD
         shell: powershell
         run: |
+          # Komplett löschen und neu erstellen
           if (Test-Path "C:\vtemp\steamcmd") {
               Remove-Item -Path "C:\vtemp\steamcmd" -Force -Recurse
           }
           mkdir -p C:\vtemp\steamcmd
           
+          # SteamCMD herunterladen
           Write-Host "Downloading SteamCMD..."
           Invoke-WebRequest -Uri "https://steamcdn-a.akamaihd.net/client/installer/steamcmd.zip" -OutFile "C:\vtemp\steamcmd\steamcmd.zip" -ErrorAction Stop
           
+          # SteamCMD entpacken
           Write-Host "Extracting SteamCMD..."
           Expand-Archive -Path "C:\vtemp\steamcmd\steamcmd.zip" -DestinationPath "C:\vtemp\steamcmd" -Force
           
+          # Zip-Datei löschen
           Write-Host "Cleaning up..."
           Remove-Item "C:\vtemp\steamcmd\steamcmd.zip" -Force
           
           # Verify extraction
           if (Test-Path "C:\vtemp\steamcmd\steamcmd.exe") {
-              Write-Host "✓ SteamCMD installed successfully"
+              Write-Host "SteamCMD installed successfully"
           } else {
               Write-Host "##[error]steamcmd.exe not found after extraction"
               exit 1
